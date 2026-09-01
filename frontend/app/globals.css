@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Archivo for headings and every number on screen: drawn for signage and
+     small sizes, so counters stay legible on a phone held at arm's length in a
+     dark hall. Inter carries the reading text. */
+  :root {
+    --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply font-body antialiased;
+  }
+
+  /* Numbers change constantly during a live event. Tabular figures stop the
+     counters from jittering as digits tick over. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* Keyboard focus must stay visible on both surfaces. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-honey ring-offset-2;
+  }
+  .on-ink :focus-visible {
+    @apply ring-offset-ink;
+  }
+  .on-paper :focus-visible {
+    @apply ring-offset-paper;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* The signature element: a camera top-plate readout. Values sit in one
+     strip divided by hairlines, the way shutter/aperture/ISO are grouped,
+     rather than in four identical floating cards. */
+  .readout-strip {
+    @apply grid divide-y divide-line rounded-panel border border-line bg-ink-raised sm:grid-cols-4 sm:divide-x sm:divide-y-0;
+  }
+  .readout-cell {
+    @apply px-5 py-4;
+  }
+  .readout-value {
+    @apply tnum font-display text-readout font-semibold text-chalk;
+  }
+  .readout-label {
+    @apply mt-1 block text-sm text-chalk-soft;
+  }
+}
+
+/* Masonry gallery. CSS columns keep varied aspect ratios intact without
+   measuring images in JavaScript, which matters when photos stream in live. */
+.masonry {
+  column-gap: 0.75rem;
+  columns: 2;
+}
+@media (min-width: 640px) {
+  .masonry {
+    columns: 3;
+  }
+}
+@media (min-width: 1024px) {
+  .masonry {
+    columns: 4;
+  }
+}
+.masonry > * {
+  break-inside: avoid;
+  margin-bottom: 0.75rem;
+}
