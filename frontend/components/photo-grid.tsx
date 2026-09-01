@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/format";
+import { mediaUrl } from "@/lib/api";
 import { Button } from "@/components/ui";
 import type { Photo } from "@/types";
 
@@ -39,7 +40,7 @@ export function PhotoGrid({ photos, scores, onDelete, emptyLabel }: GridProps) {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={photo.thumbnail_url}
+                src={mediaUrl(photo.thumbnail_url)}
                 alt={photo.filename}
                 loading="lazy"
                 decoding="async"
@@ -120,7 +121,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: ViewerPro
   }, [go, onClose]);
 
   const share = async () => {
-    const url = `${window.location.origin}${photo.original_url}`;
+    const url = mediaUrl(photo.original_url);
     // Web Share opens the native sheet on a phone, which is where guests are.
     if (navigator.share) {
       try {
@@ -190,7 +191,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: ViewerPro
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           key={photo.id}
-          src={photo.original_url}
+          src={mediaUrl(photo.original_url)}
           alt={photo.filename}
           className="max-h-full max-w-full object-contain"
         />
@@ -209,7 +210,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: ViewerPro
 
       <footer className="flex flex-wrap items-center justify-center gap-3 px-4 py-4">
         <a
-          href={`${photo.original_url}?download=true`}
+          href={`${mediaUrl(photo.original_url)}?download=true`}
           download={photo.filename}
           className="inline-flex items-center rounded-control bg-honey px-5 py-2.5 text-sm font-semibold text-ink hover:bg-honey-bright"
         >

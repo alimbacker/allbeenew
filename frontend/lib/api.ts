@@ -19,8 +19,33 @@ import type {
 
 const TOKEN_KEY = "allbee.token";
 
-/** Relative by default: next.config.mjs proxies /api to FastAPI. */
-export const API_BASE = "";
+/**
+ * Where the API lives, as seen from the browser.
+ *
+ * Empty means same-origin, which is the local-development default:
+ * next.config.mjs proxies /api to FastAPI so there is no CORS to think about.
+ *
+ * Set NEXT_PUBLIC_API_URL when the frontend and backend are on different
+ * hosts -- for example the frontend on Vercel and the backend on a VPS. The
+ * browser then talks to the backend directly rather than through the
+ * frontend host, which matters for uploads: proxying them through Vercel
+ * would cap every photo at that platform's 4.5 MB request-body limit.
+ */
+export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
+
+/**
+ * Turn a relative path returned by the API into one the browser can load.
+ *
+ * The API returns photo URLs as `/api/public/photos/{id}/thumbnail`. Those
+ * resolve against the *page* origin, so on a split deployment an <img> would
+ * ask the frontend host for a photo it does not have. Everything that puts a
+ * server-supplied path into `src` or `href` must go through here.
+ */
+export function mediaUrl(path: string): string {
+  if (!path) return path;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -131,8 +156,21 @@ export const api = {
   deleteEvent: (id: string) =>
     request<{ message: string }>(`/api/events/${id}`, { method: "DELETE" }, true),
 
-  qrUrl: (id: string, download = false) =>
-    `${API_BASE}/api/events/${id}/qr${download ? "?download=true" : ""}`,
+  /**
+   * Fetch the QR PNG as a blob.
+   *
+   * This endpoint checks event ownership, and an <img src> cannot carry an
+   * Authorization header -- so loading it by URL returns 401. The caller turns
+   * this blob into an object URL for both display and download.
+   */
+  qrBlob: async (id: string): Promise<Blob> => {
+    const headers = new Headers();
+    const token = getToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const response = await fetch(`${API_BASE}/api/events/${id}/qr`, { headers });
+    if (!response.ok) throw await toApiError(response);
+    return response.blob();
+  },
 
   // -- photos -------------------------------------------------------------
   listPhotos: (eventId: string, limit = 60, offset = 0) =>

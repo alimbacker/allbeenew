@@ -291,3 +291,81 @@ paths, so:
 4. Point DNS at it.
 
 No code changes and no data migration.
+
+
+---
+
+# Option B: frontend on Vercel, backend on your own server
+
+Vercel cannot host the backend. That is not a configuration problem:
+
+- **Photos need a real filesystem.** Vercel's is ephemeral, so
+  `storage/events/...` would not survive between requests.
+- **Face processing runs on background threads** that outlive the HTTP
+  response. Serverless functions are stopped as soon as they reply.
+- **The models are ~190 MB** held in memory. Serverless cannot keep that warm.
+- **Request bodies are capped at 4.5 MB**, well under the 25 MB upload limit.
+
+The frontend, though, is a good fit for Vercel. The backend goes on any host
+with a persistent disk -- a VPS as in Option A, or Render / Railway / Fly.io
+with a volume attached.
+
+## 1. Deploy the backend first
+
+Follow Option A above, but skip the Next.js and `allbee-web` parts. You want
+the API reachable at its own HTTPS hostname, for example
+`https://api.yourdomain.com`.
+
+Set these in `backend/.env`, using the **frontend's** URL for both:
+
+```ini
+PUBLIC_BASE_URL=https://allbeenew.vercel.app
+CORS_ORIGINS=https://allbeenew.vercel.app
+```
+
+`PUBLIC_BASE_URL` is what QR codes encode, so it has to be the page a guest's
+phone should land on. `CORS_ORIGINS` is what the browser is permitted to call
+the API from; it must match exactly, scheme included.
+
+Check it from your laptop before going further:
+
+```bash
+curl https://api.yourdomain.com/health
+```
+
+## 2. Point the frontend at it
+
+In Vercel: **Project → Settings → Environment Variables**
+
+```
+NEXT_PUBLIC_API_URL = https://api.yourdomain.com
+```
+
+Add it to Production, Preview and Development, then **redeploy**. Environment
+variables are baked in at build time, so an existing deployment will not pick
+this up until it is rebuilt.
+
+With this set, the browser calls your backend directly instead of routing
+through Vercel. That is deliberate: proxying uploads through Vercel would
+subject every photo to its 4.5 MB request-body limit.
+
+## 3. Vercel project settings
+
+Because the repository has `backend/` and `frontend/` side by side:
+
+| Setting | Value |
+|---|---|
+| Root Directory | `frontend` |
+| Framework Preset | Next.js |
+| Build Command | *(default)* |
+
+## 4. Checklist when something 404s or is blocked
+
+| Symptom | Cause |
+|---|---|
+| `Request failed (404)` on sign-in | `NEXT_PUBLIC_API_URL` unset, or set but not redeployed |
+| Sign-in works, photos are broken images | `NEXT_PUBLIC_API_URL` has a trailing slash or a typo |
+| Browser console shows a CORS error | `CORS_ORIGINS` does not exactly match the frontend URL |
+| QR code opens a page that will not load | `PUBLIC_BASE_URL` still says `localhost` |
+| Uploads fail above a few MB | Uploads are going through a proxy instead of direct to the API |
+| Guest camera button does nothing | The site is not on HTTPS; the camera API requires a secure origin |
